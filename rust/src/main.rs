@@ -1,8 +1,13 @@
 use sysinfo::{System, RefreshKind, CpuRefreshKind, Disks};
 use serde::{Serialize, Deserialize};
 use serde_json::from_str;
+use std::error::Error;
 
 fn main(){
+    let rres: Res = poll_resources(true);
+    println!("{}", rres);
+
+
     let mut sys = System::new_all();
     let mut s = System::new_with_specifics(
     RefreshKind::everything().with_cpu(CpuRefreshKind::everything()),
@@ -61,7 +66,7 @@ fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>());
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct Resources{
     cpu_usage: Vec<f64>,
     disk_usage: f64,
@@ -70,42 +75,48 @@ struct Resources{
     total_memory: i64,
 }
 
-fn poll_resources(json_type : bool) -> Result<Resources, Error, String> {
+enum Res{
+    JSON(Result<Resources,serde_json::Error>),
+    Default(String)
+}
+
+fn poll_resources(json_type : bool) -> Res {
     let mut res = String::from("r# { ");
     let mut sys = System::new_all();
     sys.refresh_all();
 
     let mut cpu_usages: Vec<f64> = Vec::new();
     for cpu in sys.cpus(){
-        cpus_usages.push(cpu.cpu_usage);
+        cpu_usages.push(cpu.cpu_usage() as f64);
     }
 
-    res.push("cpu_usage: {:?},", cpu_usages)
+    res.push_str(&format!("cpu_usage: {:?},", cpu_usages));
     let disks = Disks::new_with_refreshed_list();
     let mut disk_usage: f64;
     let mut disk_space: f64;
     for disk in &disks{
         disk_space = disk.total_space() as f64 / 1000000000.0;
-        disk_usage = disk_space - (disc.available_space as f64 / 1000000000.0);
+        disk_usage = disk_space - (disk.available_space() as f64 / 1000000000.0);
+        res.push_str(&format!("disk_usage: {:.2},", disk_usage));
+        res.push_str(&format!("total_disk: {:.2},", disk_space));
     }
 
 
+    // PUSHING A FORMATTED STRING DOESNT WORK THIS WAY, SIMPLE FIX
 
-    res.push_str("disk_usage: {:.2},", disk_usage);
-    res.push_str("total_disk: {:.2}," disk_space);
-
-    const memory_usage: f64 = sys.used_memory() as f64 / 1000000000.0;
-    const memory_space: f64 = sys.total_memory() as f64 / 1000000000.0;
-    res.push_str("memory_usage: {:.2},",memory_usage);
-    res.push_str("total_memory: {:.2}", memory_space);
+    let memory_usage: f64 = sys.used_memory() as f64 / 1000000000.0;
+    let memory_space: f64 = sys.total_memory() as f64 / 1000000000.0;
+    res.push_str(&format!("memory_usage: {:.2},",memory_usage));
+    res.push_str(&format!("total_memory: {:.2}", memory_space));
+    res.push_str(" }");
 
     if json_type{
         let json_res = from_str::<Resources>(&res);
-        return json_res
+        return Res::JSON(json_res)
     }
     else{
         println!("{}",res);
-        return res;
+        return Res::Default(res);
     }
 }
 
