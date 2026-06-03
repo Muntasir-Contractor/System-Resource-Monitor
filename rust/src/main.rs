@@ -1,12 +1,13 @@
 use sysinfo::{System, RefreshKind, CpuRefreshKind, Disks};
+use std::time::Duration;
 use serde::{Serialize, Deserialize};
 use serde_json::from_str;
 use std::error::Error;
 
 fn main(){
     let rres: Res = poll_resources(true);
-    println!("{}", rres);
-
+    print_resources(rres);
+    std::thread::sleep(Duration::from_secs(10));
 
     let mut sys = System::new_all();
     let mut s = System::new_with_specifics(
@@ -70,9 +71,17 @@ fn print_type_of<T>(_: &T) {
 struct Resources{
     cpu_usage: Vec<f64>,
     disk_usage: f64,
-    total_disk: i64,
+    total_disk: f64,
     memory_usage: f64,
-    total_memory: i64,
+    total_memory: f64,
+}
+
+fn print_resources(resources: Res){
+    match resources{
+        Res::JSON(Ok(resources)) => println!("{}", serde_json::to_string(&resources).unwrap()),
+        Res::JSON(Err(e)) => println!("Error: {}",e),
+        Res::Default(resources) => println!("{}", resources)
+    }
 }
 
 enum Res{
@@ -81,7 +90,7 @@ enum Res{
 }
 
 fn poll_resources(json_type : bool) -> Res {
-    let mut res = String::from("r# { ");
+    let mut res = String::from("{ ");
     let mut sys = System::new_all();
     sys.refresh_all();
 
@@ -90,27 +99,25 @@ fn poll_resources(json_type : bool) -> Res {
         cpu_usages.push(cpu.cpu_usage() as f64);
     }
 
-    res.push_str(&format!("cpu_usage: {:?},", cpu_usages));
+    res.push_str(&format!("\"cpu_usage\": {:?},", cpu_usages));
     let disks = Disks::new_with_refreshed_list();
     let mut disk_usage: f64;
     let mut disk_space: f64;
     for disk in &disks{
         disk_space = disk.total_space() as f64 / 1000000000.0;
         disk_usage = disk_space - (disk.available_space() as f64 / 1000000000.0);
-        res.push_str(&format!("disk_usage: {:.2},", disk_usage));
-        res.push_str(&format!("total_disk: {:.2},", disk_space));
+        res.push_str(&format!("\"disk_usage\": {:.2},", disk_usage));
+        res.push_str(&format!("\"total_disk\": {:.2},", disk_space));
     }
 
 
-    // PUSHING A FORMATTED STRING DOESNT WORK THIS WAY, SIMPLE FIX
-
     let memory_usage: f64 = sys.used_memory() as f64 / 1000000000.0;
     let memory_space: f64 = sys.total_memory() as f64 / 1000000000.0;
-    res.push_str(&format!("memory_usage: {:.2},",memory_usage));
-    res.push_str(&format!("total_memory: {:.2}", memory_space));
-    res.push_str(" }");
+    res.push_str(&format!("\"memory_usage\": {:.2},",memory_usage));
+    res.push_str(&format!("\"total_memory\": {:.2}", memory_space));
+    res.push_str("}");
 
-    if json_type{
+    if json_type == true{
         let json_res = from_str::<Resources>(&res);
         return Res::JSON(json_res)
     }
