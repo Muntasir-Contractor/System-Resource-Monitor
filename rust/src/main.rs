@@ -1,7 +1,7 @@
 use sysinfo::{System, RefreshKind, CpuRefreshKind, Disks};
 use std::time::Duration;
 use serde::{Serialize, Deserialize};
-use serde_json::from_str;
+use serde_json::{from_str, to_string};
 use std::error::Error;
 
 fn main(){
@@ -78,14 +78,14 @@ struct Resources{
 
 fn print_resources(resources: Res){
     match resources{
-        Res::JSON(Ok(resources)) => println!("{}", serde_json::to_string(&resources).unwrap()),
+        Res::JSON(Ok(resources)) => println!("{}",resources),
         Res::JSON(Err(e)) => println!("Error: {}",e),
         Res::Default(resources) => println!("{}", resources)
     }
 }
 
 enum Res{
-    JSON(Result<Resources,serde_json::Error>),
+    JSON(Result<String,serde_json::Error>),
     Default(String)
 }
 
@@ -94,6 +94,7 @@ fn poll_resources(json_type : bool) -> Res {
     let mut sys = System::new_all();
     sys.refresh_all();
 
+    
     let mut cpu_usages: Vec<f64> = Vec::new();
     for cpu in sys.cpus(){
         cpu_usages.push(cpu.cpu_usage() as f64);
@@ -101,25 +102,36 @@ fn poll_resources(json_type : bool) -> Res {
 
     res.push_str(&format!("\"cpu_usage\": {:?},", cpu_usages));
     let disks = Disks::new_with_refreshed_list();
-    let mut disk_usage: f64;
-    let mut disk_space: f64;
+    let mut disk_usage_: f64 = 1.0;
+    let mut disk_space_: f64 = 1.0;
     for disk in &disks{
-        disk_space = disk.total_space() as f64 / 1000000000.0;
-        disk_usage = disk_space - (disk.available_space() as f64 / 1000000000.0);
-        res.push_str(&format!("\"disk_usage\": {:.2},", disk_usage));
-        res.push_str(&format!("\"total_disk\": {:.2},", disk_space));
+        disk_space_ = disk.total_space() as f64 / 1000000000.0;
+        disk_usage_ = disk_space_ - (disk.available_space() as f64 / 1000000000.0);
+        res.push_str(&format!("\"disk_usage\": {:.2},", disk_usage_));
+        res.push_str(&format!("\"total_disk\": {:.2},", disk_space_));
     }
 
+    
 
-    let memory_usage: f64 = sys.used_memory() as f64 / 1000000000.0;
+
+
+    let memory_usage_: f64 = sys.used_memory() as f64 / 1000000000.0;
     let memory_space: f64 = sys.total_memory() as f64 / 1000000000.0;
-    res.push_str(&format!("\"memory_usage\": {:.2},",memory_usage));
+    res.push_str(&format!("\"memory_usage\": {:.2},",memory_usage_));
     res.push_str(&format!("\"total_memory\": {:.2}", memory_space));
     res.push_str("}");
+    let mut result: Resources = Resources {
+        cpu_usage: cpu_usages,
+        disk_usage: disk_usage_,
+        total_disk: disk_space_,
+        memory_usage: memory_usage_,
+        total_memory: memory_space
+        
+    };
 
     if json_type == true{
-        let json_res = from_str::<Resources>(&res);
-        return Res::JSON(json_res)
+        let json_res = serde_json::to_string(&result);
+        return Res::JSON(Ok(json_res.expect("Error")))
     }
     else{
         println!("{}",res);
