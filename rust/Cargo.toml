@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+nvml-wrapper = "0.12.1"
+pretty-bytes = "0.2.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 sysinfo = "0.30"
