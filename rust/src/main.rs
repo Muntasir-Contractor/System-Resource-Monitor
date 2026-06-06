@@ -74,6 +74,23 @@ struct Resources{
     total_disk: f64,
     memory_usage: f64,
     total_memory: f64,
+    gpu_resource: GPU_Resources
+}
+
+impl Resources{
+    fn to_string(&self) -> String{
+        let res = format!("cpu_usage: {:?},\ndisk_usage: {},\ntotal_disk: {},\nmemory_usage: {},\ntotal_memory: {} ", self.cpu_usage,self.disk_usage,self.total_disk,self.memory_usage,self.total_memory);
+        res
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct GPU_Resources{
+    device_brand: Option<String>,
+    fan_speed: Option<f64>,
+    power_limit: Option<f64>,
+    encoder_util: Option<f64>,
+    memory_info: Option<f64>
 }
 
 fn print_resources(resources: Res){
@@ -90,7 +107,6 @@ enum Res{
 }
 
 fn poll_resources(json_type : bool) -> Res {
-    let mut res = String::from("{ ");
     let mut sys = System::new_all();
     sys.refresh_all();
 
@@ -99,16 +115,12 @@ fn poll_resources(json_type : bool) -> Res {
     for cpu in sys.cpus(){
         cpu_usages.push(cpu.cpu_usage() as f64);
     }
-
-    res.push_str(&format!("\"cpu_usage\": {:?},", cpu_usages));
     let disks = Disks::new_with_refreshed_list();
     let mut disk_usage_: f64 = 1.0;
     let mut disk_space_: f64 = 1.0;
     for disk in &disks{
         disk_space_ = disk.total_space() as f64 / 1000000000.0;
         disk_usage_ = disk_space_ - (disk.available_space() as f64 / 1000000000.0);
-        res.push_str(&format!("\"disk_usage\": {:.2},", disk_usage_));
-        res.push_str(&format!("\"total_disk\": {:.2},", disk_space_));
     }
 
     
@@ -117,15 +129,19 @@ fn poll_resources(json_type : bool) -> Res {
 
     let memory_usage_: f64 = sys.used_memory() as f64 / 1000000000.0;
     let memory_space: f64 = sys.total_memory() as f64 / 1000000000.0;
-    res.push_str(&format!("\"memory_usage\": {:.2},",memory_usage_));
-    res.push_str(&format!("\"total_memory\": {:.2}", memory_space));
-    res.push_str("}");
     let mut result: Resources = Resources {
         cpu_usage: cpu_usages,
         disk_usage: disk_usage_,
         total_disk: disk_space_,
         memory_usage: memory_usage_,
-        total_memory: memory_space
+        total_memory: memory_space,
+        gpu_resource: GPU_Resources{
+            device_brand: None,
+            fan_speed: None,
+            power_limit: None,
+            encoder_util: None,
+            memory_info: None
+        }
         
     };
 
@@ -134,8 +150,8 @@ fn poll_resources(json_type : bool) -> Res {
         return Res::JSON(Ok(json_res.expect("Error")))
     }
     else{
-        println!("{}",res);
-        return Res::Default(res);
+        println!("{}",result.to_string());
+        return Res::Default(result.to_string());
     }
 }
 
