@@ -106,6 +106,10 @@ enum Res{
     Default(String)
 }
 
+fn has_gpu() -> bool {
+    true
+}
+
 fn poll_resources(json_type : bool) -> Res {
     let mut sys = System::new_all();
     sys.refresh_all();
