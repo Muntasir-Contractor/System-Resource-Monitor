@@ -3,6 +3,9 @@ use std::time::Duration;
 use serde::{Serialize, Deserialize};
 use serde_json::{from_str, to_string};
 use std::error::Error;
+use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
+use nvml_wrapper::error::NvmlError;
+use nvml_wrapper::{cuda_driver_version_major, cuda_driver_version_minor, Nvml};
 
 fn main(){
     let rres: Res = poll_resources(true);
@@ -86,6 +89,8 @@ impl Resources{
 
 #[derive(Deserialize, Serialize, Debug)]
 struct GPU_Resources{
+    // Clock speed , GPU utilization %, VRAM total and VRAM used, running compute processes, GPU model/name and compute capability, 
+    // Power draw and power limit, GPU model/name and compute capability
     device_brand: Option<String>,
     fan_speed: Option<f64>,
     power_limit: Option<f64>,
@@ -107,7 +112,12 @@ enum Res{
 }
 
 fn has_gpu() -> bool {
-    true
+    let nvml = Nvml::init();
+
+    match nvml {
+        Ok(_) => return true,
+        Err(_error) => return false 
+    }
 }
 
 fn poll_resources(json_type : bool) -> Res {
@@ -145,11 +155,19 @@ fn poll_resources(json_type : bool) -> Res {
             power_limit: None,
             encoder_util: None,
             memory_info: None
-        }
+        }};
+
+    let has_GPU: bool = has_gpu();
+    
         
-    };
 
     if json_type == true{
+        if has_GPU{
+            println!("Has GPU")
+        }
+        else{
+            println!("Does not have GPU")
+        }
         let json_res = serde_json::to_string(&result);
         return Res::JSON(Ok(json_res.expect("Error")))
     }
