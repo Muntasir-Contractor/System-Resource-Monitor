@@ -92,10 +92,15 @@ struct GPU_Resources{
     // Clock speed , GPU utilization %, VRAM total and VRAM used, running compute processes, GPU model/name and compute capability, 
     // Power draw and power limit, GPU model/name and compute capability
     device_brand: Option<String>,
-    fan_speed: Option<f64>,
-    power_limit: Option<f64>,
-    encoder_util: Option<f64>,
-    memory_info: Option<f64>
+    architecture: Option<String>,
+    vram_total: Option<u64>,
+    vram_used: Option<u64>,
+    vram_free: Option<u64>,
+    gpu_utilization: Option<u32>,
+    temperature: Option<u32>,
+    power_limit: Option<u32>,
+    power_draw: Option<u32>,
+    compute_processes: Option<u32>
 }
 
 fn print_resources(resources: Res){
@@ -118,6 +123,30 @@ fn has_gpu() -> bool {
         Ok(_) => return true,
         Err(_error) => return false 
     }
+}
+
+fn poll_gpu_resources() -> GPU_Resources{
+    let nvml = Nvml::init();
+    let cuda_version = nvml.sys_cuda_driver_version();
+    let device = nvml.device_by_index(0);
+    let mem_info = device.memory_info();
+
+    let res = GPU_Resources {
+        device_brand: device.name,
+        architecture: device.architecture,
+        vram_total: mem_info.total,
+        vram_used: mem_info.used,
+        vram_free: mem_info.free,
+        gpu_utilization: device.utilization_rates().gpu,
+        temperature: device.temperature(TemperatureSensor::Gpu),
+        power_limit: device.power_management_limit(),
+        power_draw: device.power_usage(),
+        computer_processes: device.running_compute_processes().len()
+
+    }
+    res
+
+
 }
 
 fn poll_resources(json_type : bool) -> Res {
