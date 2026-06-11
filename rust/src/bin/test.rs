@@ -17,6 +17,7 @@ fn main() -> Result<(), NvmlError> {
     let name = device.name()?;
     let temperature = device.temperature(TemperatureSensor::Gpu)?;
     let mem_info = device.memory_info()?;
+    println!("{:?}", mem_info);
     let graphics_clock = device.clock_info(Clock::Graphics)?;
     let mem_clock = device.clock_info(Clock::Memory)?;
     let link_gen = device.current_pcie_link_gen()?;
