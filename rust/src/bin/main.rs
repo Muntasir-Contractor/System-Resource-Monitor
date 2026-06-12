@@ -82,7 +82,7 @@ struct Resources{
 
 impl Resources{
     fn to_string(&self) -> String{
-        let res = format!("cpu_usage: {:?},\ndisk_usage: {},\ntotal_disk: {},\nmemory_usage: {},\ntotal_memory: {} ", self.cpu_usage,self.disk_usage,self.total_disk,self.memory_usage,self.total_memory);
+        let res = format!("cpu_usage: {:?},\ndisk_usage: {},\ntotal_disk: {},\nmemory_usage: {},\ntotal_memory: {}, gpu_resources: {:?} ", self.cpu_usage,self.disk_usage,self.total_disk,self.memory_usage,self.total_memory,self.gpu_resource);
         res
     }
 }
@@ -191,8 +191,10 @@ fn poll_resources(json_type : bool) -> Res {
         
 
     if json_type == true{
+        let mut gpu_res: GPU_Resources;
         if has_GPU{
-            println!("Has GPU")
+            gpu_res = poll_gpu_resources();
+            results.gpu_resource = gpu_res;
         }
         else{
             println!("Does not have GPU")
