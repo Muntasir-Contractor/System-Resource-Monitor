@@ -6,6 +6,7 @@ use std::error::Error;
 use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
 use nvml_wrapper::error::NvmlError;
 use nvml_wrapper::{cuda_driver_version_major, cuda_driver_version_minor, Nvml};
+use nvml_wrapper::Device;
 
 fn main(){
     let rres: Res = poll_resources(true);
@@ -125,13 +126,12 @@ fn has_gpu() -> bool {
     }
 }
 
-fn poll_gpu_resources() -> GPU_Resources{
-    let nvml = Nvml::init();
-    let cuda_version = nvml.sys_cuda_driver_version();
-    let device = nvml.device_by_index(0);
+fn poll_gpu_resources(device: &Device) -> GPU_Resources{
     let mem_info = device.memory_info();
 
     let res = GPU_Resources {
+        // use device.name.ok() and so on and sofourth to turn the Result<T,E> into Option<T>
+        // use mem_info.as_ref().ok().map(|m| m.used) so on and so fourth
         device_brand: device.name,
         architecture: device.architecture,
         vram_total: mem_info.total,
@@ -141,9 +141,9 @@ fn poll_gpu_resources() -> GPU_Resources{
         temperature: device.temperature(TemperatureSensor::Gpu),
         power_limit: device.power_management_limit(),
         power_draw: device.power_usage(),
-        computer_processes: device.running_compute_processes().len()
+        compute_processes: device.running_compute_processes().len()
 
-    }
+    };
     res
 
 
@@ -180,10 +180,15 @@ fn poll_resources(json_type : bool) -> Res {
         total_memory: memory_space,
         gpu_resource: GPU_Resources{
             device_brand: None,
-            fan_speed: None,
+            architecture: None,
+            vram_total: None,
+            vram_used: None,
+            vram_free: None,
+            gpu_utilization: None,
+            temperature: None,
             power_limit: None,
-            encoder_util: None,
-            memory_info: None
+            power_draw: None,
+            compute_processes: None
         }};
 
     let has_GPU: bool = has_gpu();
@@ -193,8 +198,10 @@ fn poll_resources(json_type : bool) -> Res {
     if json_type == true{
         let mut gpu_res: GPU_Resources;
         if has_GPU{
-            gpu_res = poll_gpu_resources();
-            results.gpu_resource = gpu_res;
+            let nvml = Nvml::init().unwrap();
+            let device = nvml.device_by_index(0).unwrap();
+            gpu_res = poll_gpu_resources(&device);
+            result.gpu_resource = gpu_res;
         }
         else{
             println!("Does not have GPU")
