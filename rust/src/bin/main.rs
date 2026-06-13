@@ -132,16 +132,16 @@ fn poll_gpu_resources(device: &Device) -> GPU_Resources{
     let res = GPU_Resources {
         // use device.name.ok() and so on and sofourth to turn the Result<T,E> into Option<T>
         // use mem_info.as_ref().ok().map(|m| m.used) so on and so fourth
-        device_brand: device.name,
-        architecture: device.architecture,
-        vram_total: mem_info.total,
-        vram_used: mem_info.used,
-        vram_free: mem_info.free,
-        gpu_utilization: device.utilization_rates().gpu,
-        temperature: device.temperature(TemperatureSensor::Gpu),
-        power_limit: device.power_management_limit(),
-        power_draw: device.power_usage(),
-        compute_processes: device.running_compute_processes().len()
+        device_brand: device.name().ok(),
+        architecture: device.architecture().ok().map(|y| format!("{:?}",y)),
+        vram_total: mem_info.as_ref().ok().map(|m| m.total),
+        vram_used: mem_info.as_ref().ok().map(|m| m.used),
+        vram_free: mem_info.as_ref().ok().map(|m| m.free),
+        gpu_utilization: device.utilization_rates().ok().map(|x| x.gpu),
+        temperature: device.temperature(TemperatureSensor::Gpu).ok(),
+        power_limit: device.power_management_limit().ok(),
+        power_draw: device.power_usage().ok(),
+        compute_processes: device.running_compute_processes().ok().map(|p| p.len() as u32)
 
     };
     res
